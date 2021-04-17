@@ -12,3 +12,4 @@ bin           = @["mockup"]
 # Dependencies
 
 requires "nim >= 1.4.4"
+requires "ffmpeg >= 0.3.11"
