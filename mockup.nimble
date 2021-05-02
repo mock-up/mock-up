@@ -13,3 +13,4 @@ bin           = @["mockup"]
 
 requires "nim >= 1.4.4"
 requires "ffmpeg >= 0.3.11"
+requires "uuids >= 0.1.11"
