@@ -1,4 +1,5 @@
 import tables, uuids, options
+import clips
 
 type
   mTimeLine* = object
@@ -7,19 +8,12 @@ type
   mLayer* = object
     clips: Table[UUID, mClip]
 
-  mClip* = object
-    start_frame: uint64
-    frame_width: uint64
-
 proc TimeLine* (): mTimeLine =
   ## タイムラインオブジェクトを生成します。
   runnableExamples:
     var tl = TimeLine()
 
   result = mTimeLine(timelineTable: tables.initTable[uint64, mLayer]())
-
-proc Clip* (): mClip =
-  result = mClip(start_frame: 0, frame_width: 0)
 
 proc `[]`* (timeline: var mTimeLine, index: uint64): var mLayer =
   if not timeline.timelineTable.hasKey(index):
@@ -46,6 +40,7 @@ proc push* (layer: var mLayer, new_clip: mClip): Option[UUID] =
   ## 同じフレームにオブジェクトを重複して追加することはできません。
   ## 追加に成功した場合はクリップの識別番号を、失敗した場合は ``none(UUID)`` を返します。
   runnableExamples:
+    import clips
     var
       tl = TimeLine()
       video_uuid = tl[1].push(Clip())
