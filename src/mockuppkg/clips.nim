@@ -56,13 +56,43 @@ proc Image* (width, height: uint, format: AVPixelFormat): Option[mClip] =
     frame: frame
   ))
 
+proc copy (clip: mClip): Option[mClip] =
+  case clip.clip_type
+  of mImage:
+    var new_frame = av_frame_alloc()
+    discard av_frame_copy_props(new_frame, clip.frame)
+    new_frame.format = clip.frame.format
+    new_frame.width = clip.frame.width
+    new_frame.height = clip.frame.height
+    if av_frame_get_buffer(new_frame, 32) != 0:
+      return none(mClip)
+    result = some(mClip(start_frame: 0, frame_width: 0, clip_type: mImage, frame: new_frame))
+  else: discard
+
+proc width* (clip: mClip): uint =
+  case clip.clip_type
+  of mVideo:
+    result = clip.codec_context.width.uint
+  else: discard
+
+proc height* (clip: mClip): uint =
+  case clip.clip_type
+  of mVideo:
+    result = clip.codec_context.height.uint
+  else: discard
+
+proc on_frame_decoded (frame: ptr AVFrame) =
+  echo frame.pts
+
 proc Video* (path: string): Option[mClip] =
   var format_context = avformat_alloc_context()
   
+  # 動画ファイルを開いて format_context に格納
   if avformat_open_input(addr format_context, path, nil, nil) != 0:
     echo "[Runtime]: avformat_open_input failed"
     return none(mClip)
   
+  # 動画ファイルのストリーム情報取得
   if avformat_find_stream_info(format_context, nil) < 0:
     echo "[Runtime]: avformat_find_stream_info failed"
     return none(mClip)
@@ -82,11 +112,13 @@ proc Video* (path: string): Option[mClip] =
       codec_param = locpar
       stream_id = frame.int
       break
-    
+  
+  # デコード
   var
     video_context = avcodec_alloc_context3(video_codec)
-    packet = av_packet_alloc()
-
+    frame = av_frame_alloc()
+    packet = AVPacket()
+  
   if avcodec_parameters_to_context(video_context, codec_param) < 0:
     echo "[Runtime]: avcodec_parameters_to_context failed"
     return none(mClip)
@@ -94,6 +126,14 @@ proc Video* (path: string): Option[mClip] =
   if avcodec_open2(video_context, video_codec, nil) < 0:
     echo "[Runtime]: avcodec_open2 failed"
     return none(mClip)
+  
+  while av_read_frame(format_context, addr packet) == 0:
+    if packet.stream_index == streams[stream_id].index:
+      if avcodec_send_packet(video_context, addr packet) != 0:
+        return none(mClip)
+      while avcodec_receive_frame(video_context, frame) == 0:
+        on_frame_decoded(frame)
+    av_packet_unref(addr packet)
   
   result = some(
     mClip(
