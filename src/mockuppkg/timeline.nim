@@ -1,5 +1,5 @@
 import tables, uuids, options
-import clips
+import clips, video, image
 
 type
   mTimeLine* = object
@@ -51,6 +51,23 @@ proc push* (layer: var mLayer, new_clip: mClip): Option[UUID] =
     result = some(uuid)
   else:
     result = none(UUID)
+
+type mObject = mVideo | mImage
+template initClip (member: untyped, typ: mClipType, obj: mObject): untyped =
+  mClip(
+    start_frame: start_frame,
+    frame_width: frame_width,
+    clip_type: typ,
+    member: obj
+  )
+
+proc push* (layer: var mLayer, video: mVideo, start_frame, frame_width: uint64): Option[UUID] =
+  var clip = initClip(video, clips.mVideo, video)
+  result = layer.push(clip)
+
+proc push* (layer: var mLayer, image: mImage, start_frame, frame_width: uint64): Option[UUID] =
+  var clip = initClip(image, clips.mImage, image)
+  result = layer.push(clip)
 
 proc destory* (layer: var mLayer, uuid: UUID): bool =
   if layer.clips.hasKey(uuid):
