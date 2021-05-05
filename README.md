@@ -5,5 +5,12 @@
 Dramatically reduces the development cost of movie compilation software.  
 This library is intended to be compiled and run in C and JavaScript.  
 
-## Dependent C library
-- ffmpeg
+## Dependent Libraries and Softwares
+- FFMpeg
+- yarn
+
+## initialize project
+
+```bash
+mockup new
+```
