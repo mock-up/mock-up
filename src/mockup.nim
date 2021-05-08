@@ -1,17 +1,17 @@
-when isMainModule:  
+when isMainModule:
   import cligen, os
 
   proc init (): int =
     createDir("frontend")
     createDir("backend")
-    let frontend_dir = currentSourcePath.parentDir().parentDir() & "/project/frontend"
-    copyDir(frontend_dir, "frontend")
-    discard execShellCmd("yarn --cwd frontend install")
-    let backend_dir = currentSourcePath.parentDir().parentDir() & "/project/backend"
-    copyDir(backend_dir, "backend")
+    discard execShellCmd("cd frontend && git init")
+    discard execShellCmd("cd frontend && git pull https://github.com/mock-up/mock-up-frontend-template.git")
+    discard execShellCmd("cd frontend && npm install")
+    discard execShellCmd("cd backend && git init")
+    discard execShellCmd("cd backend && git pull https://github.com/mock-up/mock-up-backend-template.git")
 
   proc dev (): int =
-    discard execShellCmd("yarn --cwd frontend start")
+    discard execShellCmd("cd frontend && npm run start")
 
   dispatchMulti(
     [init, cmdName = "new"],
