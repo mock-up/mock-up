@@ -3,3 +3,6 @@ nimblecache/
 htmldocs/
 mockup
 assets/
+out/
+.DS_Store
+src/mockuppkg/escape
