@@ -10,6 +10,7 @@ type
   Pixel* = object
     x, y: int
     red, green, blue: ptr uint8
+  PixelBuffer* = seq[seq[uint8]]
 
 proc getFrameEither (frame_either: FrameEither): Frame =
   result = fp.get[string, Frame](frame_either)
@@ -35,6 +36,15 @@ proc copy* (src: Frame): Frame =
   result.av_frame[].nb_samples = src.av_frame[].nb_samples
   result.av_frame[].pts = src.av_frame[].pts
 
+proc height* (frame: Frame): int32 =
+  result = frame.av_frame[].height
+
+proc width* (frame: Frame): int32 =
+  result = frame.av_frame[].width
+
+proc linesize* (frame: Frame): int32 =
+  result = frame.av_frame[].linesize[0]
+
 proc `[]`* (frame: Frame, x: int): PixelRowData =
   result = (x: x, linesize: frame.av_frame[].linesize[0], datum: frame.av_frame[].data[0])
 
@@ -58,3 +68,18 @@ proc `rgb=`* (pixel: Pixel, color: Palette.tRGB): Palette.tRGB =
   pixel.red[] = color.red.uint8
   pixel.green[] = color.green.uint8
   pixel.blue[] = color.blue.uint8
+
+iterator pixels* (frame: Frame): Pixel =
+  let
+    (height, width) = (frame.height, frame.width)
+    linesize = frame.linesize
+    datum = frame.av_frame[].data[0]
+  for y in 0 ..< height:
+    for x in 0 ..< width:
+      var index = (y * linesize + x * 3).uint
+      yield Pixel(
+        x: x, y: y,
+        red: cast[ptr uint8](cast[uint](datum) + index),
+        green: cast[ptr uint8](cast[uint](datum) + index + 1),
+        blue: cast[ptr uint8](cast[uint](datum) + index + 2)
+      )
