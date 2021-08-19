@@ -64,7 +64,7 @@ proc rgb* (pixel: Pixel): Palette.tRGB =
     Palette.tBinaryRange(pixel.blue[])
   )
 
-proc `rgb=`* (pixel: Pixel, color: Palette.tRGB): Palette.tRGB =
+proc `rgb=`* (pixel: var Pixel, color: Palette.tRGB) =
   pixel.red[] = color.red.uint8
   pixel.green[] = color.green.uint8
   pixel.blue[] = color.blue.uint8
