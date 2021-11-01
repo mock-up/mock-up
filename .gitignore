@@ -2,7 +2,9 @@ nimcache/
 nimblecache/
 htmldocs/
 mockup
+!src/mockup
 assets/
 out/
 .DS_Store
 src/mockuppkg/escape
+cli/main
