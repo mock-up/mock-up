@@ -167,22 +167,12 @@ proc sendFrame* (streaming: MockUpStreaming, src_frame: MockupImage) =
     ffmpeg.av_packet_rescale_ts(
       packet.addr, streaming.out_codec_ctx.time_base, streaming.out_stream.time_base
     )
-    echo streaming.out_codec_ctx.time_base
-    echo streaming.out_stream.time_base
-    # echo dest_frame.frame[].pts
-    echo framenum
-    echo "-------------------------"
     framenum += 1
-    # 1001
-    # 2002
-    # 3003
     if ffmpeg.av_interleaved_write_frame(streaming.ofmt_ctx, packet.addr) != 0:
       raise newException(FFmpegError, "パケットの書き込みに失敗しました")
   ffmpeg.av_packet_unref(packet.addr)
 
 proc finish* (streaming: MockUpStreaming) =
-  echo streaming.out_codec_ctx[].framerate
-  echo streaming.ofmt_ctx[].fps_probe_size
   discard ffmpeg.av_write_trailer(streaming.ofmt_ctx)
   discard ffmpeg.avcodec_close(streaming.out_codec_ctx)
   discard ffmpeg.avio_close(streaming.ofmt_ctx[].pb)
