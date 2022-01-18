@@ -13,8 +13,9 @@ type
     colors*: array[3, tuple[r, g, b: uint]]
     base_size: uint # 初期化時の重心と各頂点の距離
     size*: uint
+    animation: proc (triangle: var MockupTriangle, frame_num: uint)
 
-  GLTriangle = object
+  GLTriangle* = object
     positions: array[3, Vec3f]
     colors: array[3, Vec4f]
     vao, vbo: uint32
@@ -67,13 +68,6 @@ proc newTriangle* (
 
 var frame_num = 0'u
 
-proc draw* (triangle: GLTriangle) =
-  glUseProgram(triangle.programID)
-  glBindVertexArray(triangle.vao)
-  glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_BYTE, nil)
-  glBindVertexArray(0)
-  glUseProgram(0)
-
 proc newTriangle* (
   position: tuple[x, y: int],
   color: tuple[r, g, b: uint],
@@ -97,7 +91,6 @@ proc newTriangle* (
       position: (position.x.float32, position.y.float32),
       base_position: (position.x.float32, position.y.float32)
     )
-  triangle.animation(frame_num)
 
   let
     size_rate = triangle.size.float32 / triangle.base_size.float32
@@ -126,3 +119,20 @@ proc newTriangle* (
   frame_num += 1
   
   result = newTriangle(vpositions, vcolors, programID, mvp)
+
+proc draw* (triangle: GLTriangle) =
+  glUseProgram(triangle.programID)
+  glBindVertexArray(triangle.vao)
+  glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_BYTE, nil)
+  glBindVertexArray(0)
+  glUseProgram(0)
+
+# proc update* (triangle: MockupTriangle): GLTriangle =
+#   var triangle = triangle
+#   triangle.animation(triangle, frame_num)
+#   result = newTriangle(
+#     triangle.position,
+#     triangle.colors[0],
+#     triangle.size,
+#     triangle.programID
+#   )

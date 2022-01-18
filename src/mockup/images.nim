@@ -131,6 +131,13 @@ proc draw* (image: MockupImage) =
   gl.glBindVertexArray(0)
   gl.glUseProgram(0)
 
+proc draw* (image: MockupImage, programID: uint32) =
+  gl.glUseProgram(programID)
+  gl.glBindVertexArray(image.vao)
+  gl.glDrawElements(gl.GL_TRIANGLES, 6, gl.GL_UNSIGNED_BYTE, nil)
+  gl.glBindVertexArray(0)
+  gl.glUseProgram(0)
+
 type
   RGBA = tuple
     red, green, blue, alpha: uint8

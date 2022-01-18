@@ -4,6 +4,7 @@ from nimgl/opengl as gl import nil
 type
   FilterKind* = enum
     ColorInversionFilter = "colorInversionFilter"
+    IdFilter = "idFilter"
 
   MockupProgram = object
 
@@ -91,5 +92,12 @@ template linkTextureProgram* (filter: FilterKind): uint32 =
   var id: uint32 = linkProgram(
     ~("../shaders/textures/vertex/" & $filter & ".glsl"),
     ~("../shaders/textures/fragment/" & $filter & ".glsl")
+  )
+  id
+
+template linkTriangleProgram* (filter: FilterKind): uint32 =
+  var id: uint32 = linkProgram(
+    ~("../shaders/triangles/vertex/" & $filter & ".glsl"),
+    ~("../shaders/triangles/fragment/" & $filter & ".glsl")
   )
   id
