@@ -16,5 +16,12 @@ mock up provides a video rendering engine and custom filters and animations, and
 - FFmpeg
 - OpenGL
 
+### Installation
+
+```zsh
+nimble install https://github.com/mock-up/mock-up/
+```
+
 ## Acknowledgments
-- Support by [Mitou Jr. 2021](https://jr.mitou.org/projects/2021/mock_up)
+This framework was supported by:
+- Mitou Jr. 2021 (May - November 2021, [Presentation of results](https://jr.mitou.org/projects/2021/mock_up))
