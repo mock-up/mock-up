@@ -55,12 +55,17 @@ when isMainModule:
     mainTexture.setFrameBuffer()
 
     var stream = initStreaming("rtmp://localhost/live_ffmpeg_1/stream", video)
-    for image in video:
-      glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT)
-      image.draw()
-      for triangle in triangles:
-        triangle.draw()
-      stream.sendFrame(image.readImage)
+    for i in 1..2:
+      for image in video:
+        echo i
+        glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT)
+        image.draw()
+        for triangle in triangles:
+          triangle.draw()
+        echo "before-sendFrame"
+        stream.sendFrame(image.readImage)
+        echo i, "end"
+      echo "for end"
     
     stream.finish()
 

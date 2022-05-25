@@ -142,6 +142,7 @@ proc sendFrame* (streaming: MockUpStreaming, src_frame: MockupImage) =
     packet = ffmpeg.AVPacket()
   dest_frame.frame = src_frame.frame.prepareCopyFrame
   dest_frame.frame[].format = streaming.out_codec_ctx[].pix_fmt.cint
+  echo "before-av_frame_get_buffer"
   if ffmpeg.av_frame_get_buffer(dest_frame.frame, 32) < 0:
     raise newException(FFmpegError, "バッファの割り当てに失敗しました")
   discard ffmpeg.sws_scale(
@@ -159,16 +160,21 @@ proc sendFrame* (streaming: MockUpStreaming, src_frame: MockupImage) =
   dest_frame.frame.pts += ffmpeg.av_rescale_q(1, streaming.out_codec_ctx[].time_base, streaming.out_stream[].time_base)
   #dest_frame.frame.key_frame = 0
   #dest_frame.frame.pict_type = ffmpeg.AV_PICTURE_TYPE_NONE
+  echo "before-avcodec_send_frame"
   if ffmpeg.avcodec_send_frame(streaming.out_codec_ctx, dest_frame.frame) != 0:
     raise newException(FFmpegError, "エンコーダーへのフレームの供給に失敗しました")
   while ffmpeg.avcodec_receive_packet(streaming.out_codec_ctx, packet.addr) == 0:
+    echo "avcodec_receive_packet 1"
+    echo "dts: ", packet.dts
     packet.stream_index = 0
     streaming.out_stream.time_base = ffmpeg.AVRational(num: 60, den: 1)
     ffmpeg.av_packet_rescale_ts(
       packet.addr, streaming.out_codec_ctx.time_base, streaming.out_stream.time_base
     )
     framenum += 1
+    echo "before-av_interleaved_write_frame"
     if ffmpeg.av_interleaved_write_frame(streaming.ofmt_ctx, packet.addr) != 0:
+      echo "after-av_interleaved_write_frame"
       raise newException(FFmpegError, "パケットの書き込みに失敗しました")
   ffmpeg.av_packet_unref(packet.addr)
 

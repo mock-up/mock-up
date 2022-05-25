@@ -181,7 +181,11 @@ iterator items* (video: var MockupVideo): MockupImage =
   var once = true
   var image: MockupImage
   var format_converter = video.getFormatConverter(ffmpeg.AV_PIX_FMT_RGBA)
+  echo "while before"
+  discard ffmpeg.av_seek_frame(video.format_context, 0, 0, 0)
+  # ffmpeg.avcodec_flush_buffers(video.codec_context)
   while ffmpeg.av_read_frame(video.format_context, packet.addr) == 0:
+    echo "while in"
     if packet.stream_index != video.stream.index:
       ffmpeg.av_packet_unref(packet.addr)
       continue
