@@ -12,7 +12,7 @@ bin           = @["cli/main"]
 # Dependencies
 
 requires "nim >= 1.4.4"
-requires "ffmpeg >= 0.4.2"
+requires "ffmpeg >= 0.5.0"
 requires "uuids >= 0.1.11"
 requires "cligen >= 1.5.2"
 requires "jester >= 0.5.0"
