@@ -1,6 +1,5 @@
 from nimgl/opengl as gl import nil
 from ffmpeg import nil
-from glm import nil
 
 type
   FFmpegError* = object of ValueError
@@ -25,7 +24,7 @@ proc prepareCopyFrame* (src: ptr ffmpeg.AVFrame): ptr ffmpeg.AVFrame =
   result[].format = src[].format
   result[].height = src[].height
   result[].width = src[].width
-  result[].channels = src[].channels
+  result[].channels = src[].channels # ?
   result[].channel_layout = src[].channel_layout
   result[].nb_samples = src[].nb_samples
   result[].pts = src[].pts

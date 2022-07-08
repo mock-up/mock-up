@@ -1,9 +1,6 @@
-import tables
 from ffmpeg import nil
 from muml import nil
-import glm
 import nimgl/glfw
-import nimgl/opengl
 import images
 import videos
 
