@@ -1,4 +1,4 @@
-import tables, uuids
+import tables
 import muml
 
 type
