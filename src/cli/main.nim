@@ -6,13 +6,16 @@
 when isMainModule:
   import cligen
   import ../mockup/[videos, images, opengl, utils, shaders, textures, streaming, triangle]
-  import json, os
-  import jester
+  import json
   import muml
   import nimgl/opengl as gl
 
   var videoContent: mumlNode
 
+  proc test1: int =
+    let _ = initializeOpenGL(1920, 1080)
+    getEmptyVideo("assets/out/test1.mp4")
+    
   proc update (muml: string): int =
     let muml = muml.parseJson.muml
     videoContent = muml.content
@@ -113,5 +116,6 @@ when isMainModule:
   dispatchMulti(
     [mainEncode, cmdName = "encode"],
     [preview],
-    [update]
+    [update],
+    [test1]
   )

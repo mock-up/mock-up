@@ -1,5 +1,4 @@
 from ffmpeg import nil
-#from nimgl/opengl as gl import nil
 import nimgl/opengl as gl
 import Palette
 import images
@@ -27,7 +26,7 @@ proc height* (video: MockupVideo): int32 =
   result = video.codec_context.height.int32
 
 proc setFormatContext (video: var MockupVideo) =
-  if ffmpeg.avformat_open_input(video.format_context.addr, video.path.cstring, nil, nil) != 0:
+  if ffmpeg.avformat_open_input(video.format_context.addr, video.path, nil, nil) != 0:
     raise newException(FFmpegError, "動画ファイルを開けませんでした")
 
 proc setStreamInfo (video: var MockupVideo) =
@@ -309,13 +308,9 @@ proc testEnc (encCtx: ptr ffmpeg.AVCodecContext, frame: ptr ffmpeg.AVFrame, pack
 
 import textures
 
-import ../mockmedia/codecs
-import ../mockmedia/frames
-
 # 動画に依存せず空フレームを生成してGLで描画してエンコードする
 proc getEmptyVideo* (srcPath: string) =
   var
-    encoder = VideoEncoder.init(vck_mpeg4, 1280, 720, 60, vff_YUV420P)
     codec = Mpeg4.getCodec
     codecContext = ffmpeg.avcodec_alloc_context3(codec)
     packet = ffmpeg.av_packet_alloc()
