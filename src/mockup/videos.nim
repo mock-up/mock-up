@@ -1,6 +1,5 @@
 from ffmpeg import nil
 import nimgl/opengl as gl
-import Palette
 import images
 
 type
@@ -168,10 +167,6 @@ func pickRGBPointer (frame: ptr ffmpeg.AVFrame, index: int): (ptr uint8, ptr uin
     green = cast[ptr uint8](cast[int](frame[].data[0]) + index + 1)
     blue = cast[ptr uint8](cast[int](frame[].data[0]) + index + 2)
   result = (red, green, blue)
-
-proc getRGB* (frame: ptr ffmpeg.AVFrame, index: int): tRGB {.inline.} =
-  let (red, green, blue) = frame.pickRGBPointer(index)
-  result = (red[].tBinaryRange, green[].tBinaryRange, blue[].tBinaryRange)
 
 iterator items* (video: var MockupVideo): MockupImage =
   ## 与えられた動画のフレームを全て返却する
