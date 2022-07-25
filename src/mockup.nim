@@ -15,10 +15,6 @@ when isMainModule:
 
   var videoContent: mumlNode
 
-  proc test1: int =
-    let _ = initializeOpenGL(1920, 1080)
-    getEmptyVideo("assets/out/test1.mp4")
-    
   proc update (muml: string): int =
     let muml = muml.parseJson.muml
     videoContent = muml.content
@@ -70,7 +66,7 @@ when isMainModule:
     
     stream.finish()
 
-  proc mainEncode: int =
+  proc encode: int =
     let _ = initializeOpenGL(1920, 1080)
     let muml = muml("assets/live/livecoding.json")
     let content = muml.content
@@ -110,14 +106,13 @@ when isMainModule:
     let now = getTime()
     let nowStr: string = format(now, "yyyy-MM-dd-HH-mm-ss")
     
-    var output_mp4 = openMP4(&"movies/{nowStr}.mp4")
+    var output_mp4 = openMP4(&"movies/{nowStr}.mp4", 1920, 1080, 60)
 
     for image in video:
       glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT)
       image.draw()
       for triangle in triangles:
         triangle.draw()
-      # video.encode(image.readImage)
       output_mp4.addFrame(image.readImage.frame)
     
     for _ in 0 ..< 50:
@@ -130,14 +125,11 @@ when isMainModule:
       glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT)
       glReadPixels(0, 0, video.width, video.height, gl.GL_RGBA, gl.GL_UNSIGNED_BYTE, frame.data[0])
       output_mp4.addFrame(frame)
-      echo "来てる？そもそも"
 
     output_mp4.close()
-    # video.finish()
 
   dispatchMulti(
-    [mainEncode, cmdName = "encode"],
+    [encode],
     [preview],
     [update],
-    [test1]
   )
