@@ -1,21 +1,22 @@
 # Package
 
-version       = "0.1.1"
+version       = "0.0.1"
 author        = "momeemt"
 description   = "Movie Compilation Kit with Unified and Progressive"
 license       = "MIT"
 srcDir        = "src"
 installExt    = @["nim"]
-skipDirs      = @["cli"]
-bin           = @["cli/main"]
+binDir        = "bin"
+bin           = @["mockup"]
 
 # Dependencies
 
 requires "nim >= 1.4.4"
-requires "ffmpeg >= 0.5.2"
+requires "ffmpeg >= 0.5.3"
 requires "cligen >= 1.5.2"
-requires "Palette >= 0.2.0"
-requires "muml >= 0.1.0"
-# requires "freetype >= 0.1.0"
 requires "nimgl >= 1.3.2"
 requires "glm >= 1.1.1"
+requires "neo >= 0.3.1"
+requires "jester >= 0.5.0"
+requires "https://github.com/mock-up/nagu"
+requires "https://github.com/mock-up/muml.nim"
