@@ -1,4 +1,4 @@
-import encode_video
+import encode_mp4
 
 when isMainModule:
-  encodeVideo()
+  encodeMp4("./out/out.mp4")
