@@ -1,10 +1,16 @@
+# Nim
 nimcache/
 nimblecache/
 htmldocs/
-mockup
-!src/mockup
-assets/
-out/
+
+# macOS
 .DS_Store
-src/mockuppkg/escape
-cli/main
+
+# binary
+bin
+
+# Assets directory for testing
+assets
+
+# Movie output directory for testing
+movies
