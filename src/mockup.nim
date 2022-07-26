@@ -1,6 +1,6 @@
 import jester, uuids
 import std/[json, db_sqlite, strformat, times]
-import mockup/[videos, images, opengl, utils, shaders, textures, streaming, triangle, encode_mp4]
+import mockuppkg/[videos, images, opengl, utils, shaders, textures, streaming, triangle, encode_mp4]
 import muml
 import nimgl/opengl as gl
 import ffmpeg
