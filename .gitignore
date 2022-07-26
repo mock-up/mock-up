@@ -9,8 +9,14 @@ htmldocs/
 # binary
 bin
 
+# database
+/db
+
 # Assets directory for testing
 assets
 
 # Movie output directory for testing
 movies
+
+# HTTP Live Streaming File
+/nginx/hls

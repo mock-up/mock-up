@@ -1,0 +1,10 @@
+version: '2'
+services:
+  nginx:
+    build: ./nginx
+    ports:
+      - "8080:8080" # HLS配信
+      - "1935:1935" # RTMP
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/hls:/var/local/www/hls/
