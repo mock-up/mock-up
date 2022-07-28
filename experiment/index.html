@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <title>mock-up デモ</title>
+  </head>
+  <body>
+    <div>
+      <video id="video_smaple" width="960" height="720" controls></video>
+    </div>
+    <div>
+      三角形の色
+      R: <input type="number" value="0" id="red">
+      G: <input type="number" value="0" id="green">
+      B: <input type="number" value="0" id="blue">
+    </div>
+    <button onclick="preview()">プレビュー</button>
+  </body>
+  <script>
+    if (Hls.isSupported()) {
+      var video = document.getElementById('video_smaple')
+      var hls = new Hls()
+      hls.loadSource('http://localhost:8080/hls/.m3u8')
+      hls.attachMedia(video)
+    }
+
+    const data = (red, green, blue) => {
+      return {
+        "muml": {
+          "header": {
+            "name": "assets/out/mitou1.mp4",
+            "width": 1280,
+            "height": 960
+          },
+          "content": [
+            {
+              "type": "video",
+              "path": "assets/src.mp4",
+              "frame": {
+                "start": 0,
+                "end": 299
+              },
+              "video": {
+                "frame": {
+                  "start": 0,
+                  "end": 299
+                },
+                "position": {
+                  "x": 0,
+                  "y": 0
+                },
+                "scale": {
+                  "width": 100,
+                  "height": 100
+                },
+                "rotate": 0,
+                "opacity": 0
+              }
+            },
+            {
+              "type": "triangle",
+              "frame": {
+                "start": 0,
+                "end": 299
+              },
+              "position": {
+                "x": {
+                  "start": 0,
+                  "end": 100
+                },
+                "y": {
+                  "start": 0,
+                  "end": 100
+                }
+              },
+              "color": {
+                "red": red,
+                "green": green,
+                "blue": blue
+              },
+              "scale": {
+                "width": 200,
+                "height": 200
+              },
+              "rotate": 0,
+              "opacity": 0
+            }
+          ]
+        }
+      }
+    }
+    const preview = async () => {
+      const [r, g, b] = [document.getElementById('red').value, document.getElementById('green').value, document.getElementById('blue').value]
+      console.log(r, g, b)
+      const res = await axios.post('http://localhost:5001/projects/94db7662-7252-49e4-a4c2-fa101a4d864d/update', data(Number(r), Number(g), Number(b)))
+        .then(response => console.log('response body:', response.data))
+      const url = await axios.get("http://localhost:5001/projects/94db7662-7252-49e4-a4c2-fa101a4d864d/preview")
+        .then(res => {
+          console.log(res.data.message)
+        })
+        .catch(err => {
+          console.log("err:", err)
+        })
+    }
+  </script>
+</html>
