@@ -69,6 +69,17 @@ proc quad: array[20, float32] = [
     1.0'f32,  1.0'f32, 0.0'f32,  1.0'f32, 1.0'f32
 ]
 
+proc textureXyzUv (width, height, project_width, project_height: int): array[20, float32] =
+  let
+    width: float32 = width / project_height
+    height: float32 = height / project_height
+  result = [
+    -width, height, 0, 0, 1,
+    -width, -height, 0, 0, 0,
+    width, -height, 0, 1, 1,
+    width, height, 0, 1, 1
+  ]
+
 proc elem: array[6, uint8] = [
   0'u8, 1'u8, 2'u8, 0'u8, 2'u8, 3'u8
 ]
@@ -104,7 +115,8 @@ proc newImage* (frame: ptr ffmpeg.AVFrame, programID: uint32): MockupImage =
   gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, gl.GLint(gl.GL_LINEAR))
   gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MIN_FILTER, gl.GLint(gl.GL_LINEAR))
   gl.glTexImage2D(gl.GL_TEXTURE_2D, 0, gl.GLint(gl.GL_RGBA), frame[].width, frame[].height, 0, gl.GL_RGBA, gl.GL_UNSIGNED_BYTE, nil)
-  echo result.uniforms.frameTex
+  once:
+    echo frame[].width, " ", frame[].height
   gl.glUniform1i(gl.GLint(result.uniforms.frameTex), 0)
   result.mvpMatrix = newMvpMatrix()
   gl.glUniformMatrix4fv(gl.GLint(result.uniforms.mvpMatrix), 1, false, result.mvpMatrix[0].addr)
@@ -167,3 +179,15 @@ proc readImage* (image: MockupImage): MockupImage =
   gl.glReadPixels(0, 0, image.width, image.height, gl.GL_RGBA, gl.GL_UNSIGNED_BYTE, frame[].data[0])
   image.frame = frame
   result = image
+
+proc initFrame* (width, height: int32): ptr ffmpeg.AVFrame =
+  result = ffmpeg.av_frame_alloc()
+  result.format = ffmpeg.AV_PIX_FMT_RGBA.cint
+  result.height = height
+  result.width = width
+  if ffmpeg.av_frame_get_buffer(result, 32) < 0:
+    raise newException(Defect, "バッファの割り当てに失敗しました")
+
+proc readFrameFromOpenGL* (width, height: gl.GLsizei): MockupImage =
+  result.frame = initFrame(width, height)
+  gl.glReadPixels(0, 0, width, height, gl.GL_RGBA, gl.GL_UNSIGNED_BYTE, result.frame[].data[0])
