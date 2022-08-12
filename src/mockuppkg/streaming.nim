@@ -1,63 +1,7 @@
 from ffmpeg import nil
-from muml import nil
 import nimgl/glfw
 import images
 import videos
-
-type
-  MockUpTimeline* = object
-    height*: int32
-    width*: int32
-    header*: muml.mumlHeader
-    content*: seq[MockUpLayer]
-  MockUpLayer* = object
-    clips*: seq[muml.mumlObject]
-    beforeKey: uint
-  MockUpFrame* = object
-    frame: ptr ffmpeg.AVFrame
-    # MockUpTimelineからあるフレームにおける構成要素が切り出される
-
-# MockUpTimelineからこれらの要素を計算する
-proc format* (timeline: MockUpTimeline): cint = discard
-proc channels* (timeline: MockUpTimeline): cint = discard
-proc channel_layout* (timeline: MockUpTimeline): uint64 = discard
-proc nb_samples* (timeline: MockUpTimeline): cint = discard
-proc pts* (timeline: MockUpTimeline): int64 = discard
-
-proc newFrame* (timeline: MockUpTimeline): ptr ffmpeg.AVFrame =
-  result = ffmpeg.av_frame_alloc()
-  result.height = timeline.height
-  result.width = timeline.width
-  result.format = ffmpeg.AV_PIX_FMT_RGB24.cint # timeline.format
-  result.channels = timeline.channels
-  result.channel_layout = timeline.channel_layout
-  result.nb_samples = timeline.nb_samples
-  result.pts = timeline.pts
-
-# proc streaming* (timeline: MockUpTimeline, frame_number: int): MockUpFrame =
-#   result.frame = timeline.newFrame()
-#   if ffmpeg.av_frame_get_buffer(result.frame, 32) < 0:
-#     return # Leftを返すようにする
-
-#   # 動画, 画像をデコードする
-#   # mumlをパースして読む
-#   for layer in timeline.content:
-#     let clip = layer.clips[layer.beforeKey] # clipを読み出す
-#     if not clip.frame.start <= frame_number:
-#       continue # 次のレイヤーをチェックする
-#     if not clip.frame.end - 1 == frame_number:
-#       discard # beforeKeyを更新する
-#     case clip.kind:
-#     of muml.mumlKindVideo: discard
-#       # 動画をデコード
-#       # frame[].dataからテクスチャを生成
-#       # OpenGLに貼り付け
-#     of muml.mumlKindRectangle: discard
-#       # OpenGLで描画
-#     # of muml.mumlKindText: discard
-#     else: discard
-
-## ここから
 
 proc initialize_avformat_context (format_name: string): ptr ffmpeg.AVFormatContext =
   result = nil
