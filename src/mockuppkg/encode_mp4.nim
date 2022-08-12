@@ -97,7 +97,7 @@ proc addFrame* (encoder: var MP4Encoder, src_frame: ptr AVFrame) =
   var packet = ffmpeg.AVPacket()
   dest_frame.pts = encoder.frame_num
   encoder.frame_num += 1
-  if (var ret = avcodec_send_frame(encoder.codec_context, dest_frame); echo ret; ret) < 0:
+  if avcodec_send_frame(encoder.codec_context, dest_frame) < 0:
     raise newException(Defect, "エンコーダーへのフレームの供給に失敗しました")
   while avcodec_receive_packet(encoder.codec_context, packet.addr) == 0:
     packet.stream_index = 0
