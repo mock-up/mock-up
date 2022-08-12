@@ -1,10 +1,23 @@
+# Nim
 nimcache/
 nimblecache/
 htmldocs/
-mockup
-!src/mockup
-assets/
-out/
+/docs
+
+# macOS
 .DS_Store
-src/mockuppkg/escape
-cli/main
+
+# binary
+bin
+
+# database
+/db
+
+# Assets directory for testing
+assets
+
+# Movie output directory for testing
+movies
+
+# HTTP Live Streaming File
+/nginx/hls

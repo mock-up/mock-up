@@ -1,68 +1,7 @@
-import tables
 from ffmpeg import nil
-from muml import nil
-import glm
 import nimgl/glfw
-import nimgl/opengl
 import images
 import videos
-
-type
-  MockUpTimeline* = object
-    height*: int32
-    width*: int32
-    header*: muml.mumlHeader
-    content*: seq[MockUpLayer]
-  MockUpLayer* = object
-    clips*: seq[muml.mumlObject]
-    beforeKey: uint
-  MockUpFrame* = object
-    frame: ptr ffmpeg.AVFrame
-    # MockUpTimelineからあるフレームにおける構成要素が切り出される
-
-# MockUpTimelineからこれらの要素を計算する
-proc format* (timeline: MockUpTimeline): cint = discard
-proc channels* (timeline: MockUpTimeline): cint = discard
-proc channel_layout* (timeline: MockUpTimeline): uint64 = discard
-proc nb_samples* (timeline: MockUpTimeline): cint = discard
-proc pts* (timeline: MockUpTimeline): int64 = discard
-
-proc newFrame* (timeline: MockUpTimeline): ptr ffmpeg.AVFrame =
-  result = ffmpeg.av_frame_alloc()
-  result.height = timeline.height
-  result.width = timeline.width
-  result.format = ffmpeg.AV_PIX_FMT_RGB24.cint # timeline.format
-  result.channels = timeline.channels
-  result.channel_layout = timeline.channel_layout
-  result.nb_samples = timeline.nb_samples
-  result.pts = timeline.pts
-
-proc video = discard
-
-# proc streaming* (timeline: MockUpTimeline, frame_number: int): MockUpFrame =
-#   result.frame = timeline.newFrame()
-#   if ffmpeg.av_frame_get_buffer(result.frame, 32) < 0:
-#     return # Leftを返すようにする
-
-#   # 動画, 画像をデコードする
-#   # mumlをパースして読む
-#   for layer in timeline.content:
-#     let clip = layer.clips[layer.beforeKey] # clipを読み出す
-#     if not clip.frame.start <= frame_number:
-#       continue # 次のレイヤーをチェックする
-#     if not clip.frame.end - 1 == frame_number:
-#       discard # beforeKeyを更新する
-#     case clip.kind:
-#     of muml.mumlKindVideo: discard
-#       # 動画をデコード
-#       # frame[].dataからテクスチャを生成
-#       # OpenGLに貼り付け
-#     of muml.mumlKindRectangle: discard
-#       # OpenGLで描画
-#     # of muml.mumlKindText: discard
-#     else: discard
-
-## ここから
 
 proc initialize_avformat_context (format_name: string): ptr ffmpeg.AVFormatContext =
   result = nil
@@ -88,7 +27,7 @@ proc set_codec_params (fctx: ptr ffmpeg.AVFormatContext, codec_ctx: ptr ffmpeg.A
   codec_ctx[].height = video.height
   codec_ctx[].gop_size = 12
   codec_ctx[].pix_fmt = ffmpeg.AV_PIX_FMT_YUV420P
-  codec_ctx[].framerate = ffmpeg.AVRational(num: 60, den: 1)
+  codec_ctx[].framerate = ffmpeg.AVRational(num: 30, den: 1)
   codec_ctx[].time_base = ffmpeg.AVRational(num: 1, den: 1) # video.codecContext[].time_base
   # codec_ctx[].ticks_per_frame = 28
   # codec_ctx[].debug = 1
@@ -111,7 +50,6 @@ type MockUpStreaming = object
   ofmt_ctx: ptr ffmpeg.AVFormatContext
   out_stream: ptr ffmpeg.AVStream
   out_codec_ctx: ptr ffmpeg.AVCodecContext
-  swsctx: ptr ffmpeg.SwsContext
 
 proc initStreaming* (output: string, video: MockupVideo): MockUpStreaming =
   result.ofmt_ctx = initialize_avformat_context("flv")
@@ -128,8 +66,6 @@ proc initStreaming* (output: string, video: MockupVideo): MockUpStreaming =
   result.out_stream[].codecpar[].extradata = result.out_codec_ctx[].extradata
   result.out_stream[].codecpar[].extradata_size = result.out_codec_ctx[].extradata_size
 
-  result.swsctx = getEncoderSwscontext(result.out_codec_ctx, ffmpeg.AV_PIX_FMT_RGBA)
-
   if ffmpeg.avformat_write_header(result.ofmt_ctx, nil) < 0:
     raise newException(FFmpegError, "Could not write header!")
 
@@ -144,8 +80,18 @@ proc sendFrame* (streaming: MockUpStreaming, src_frame: MockupImage) =
   dest_frame.frame[].format = streaming.out_codec_ctx[].pix_fmt.cint
   if ffmpeg.av_frame_get_buffer(dest_frame.frame, 32) < 0:
     raise newException(FFmpegError, "バッファの割り当てに失敗しました")
+  let context = ffmpeg.sws_getContext(
+    streaming.out_codec_ctx.width,
+    streaming.out_codec_ctx.height,
+    ffmpeg.AV_PIX_FMT_RGBA,
+    streaming.out_codec_ctx.width,
+    streaming.out_codec_ctx.height,
+    streaming.out_codec_ctx.pix_fmt,
+    ffmpeg.SWS_BICUBIC,
+    nil, nil, nil
+  )
   discard ffmpeg.sws_scale(
-    streaming.swsctx,
+    context,
     frame.frame[].data[0].addr,
     frame.frame[].linesize[0].addr,
     0,
@@ -163,7 +109,7 @@ proc sendFrame* (streaming: MockUpStreaming, src_frame: MockupImage) =
     raise newException(FFmpegError, "エンコーダーへのフレームの供給に失敗しました")
   while ffmpeg.avcodec_receive_packet(streaming.out_codec_ctx, packet.addr) == 0:
     packet.stream_index = 0
-    streaming.out_stream.time_base = ffmpeg.AVRational(num: 60, den: 1)
+    streaming.out_stream.time_base = ffmpeg.AVRational(num: 30, den: 1)
     ffmpeg.av_packet_rescale_ts(
       packet.addr, streaming.out_codec_ctx.time_base, streaming.out_stream.time_base
     )

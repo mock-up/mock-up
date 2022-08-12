@@ -1,9 +1,5 @@
 from ffmpeg import nil
-#from nimgl/opengl as gl import nil
-import nimgl/opengl as gl
-import Palette
 import images
-import os
 
 type
   MockupVideo* = object
@@ -125,18 +121,6 @@ proc getFormatConverter (video: MockupVideo, pixel_format: ffmpeg.AVPixelFormat)
     nil, nil, nil
   )
 
-proc getEncoderSwscontext (video: MockupVideo, pixel_format: ffmpeg.AVPixelFormat): ptr ffmpeg.SwsContext =
-  result = ffmpeg.sws_getContext(
-    video.codec_context[].width,
-    video.codec_context[].height,
-    pixel_format,
-    video.codec_context[].width,
-    video.codec_context[].height,
-    video.codec_context[].pix_fmt,
-    ffmpeg.SWS_BICUBIC,
-    nil, nil, nil
-  )
-
 proc getEncoderSwscontext* (codecContext: ptr ffmpeg.AVCodecContext, pixelFormat: ffmpeg.AVPixelFormat): ptr ffmpeg.SwsContext =
   result = ffmpeg.sws_getContext(
     codecContext[].width,
@@ -164,16 +148,10 @@ proc formatConvert (src: ptr ffmpeg.AVFrame, format_converter: ptr ffmpeg.SwsCon
     result[].linesize[0].addr
   )
 
-func pickRGBPointer (frame: ptr ffmpeg.AVFrame, index: int): (ptr uint8, ptr uint8, ptr uint8) {.inline.} =
-  let
-    red = cast[ptr uint8](cast[int](frame[].data[0]) + index)
-    green = cast[ptr uint8](cast[int](frame[].data[0]) + index + 1)
-    blue = cast[ptr uint8](cast[int](frame[].data[0]) + index + 2)
-  result = (red, green, blue)
-
-proc getRGB* (frame: ptr ffmpeg.AVFrame, index: int): tRGB {.inline.} =
-  let (red, green, blue) = frame.pickRGBPointer(index)
-  result = (red[].tBinaryRange, green[].tBinaryRange, blue[].tBinaryRange)
+proc seek* (video: var MockupVideo, timestamp: int) =
+  if ffmpeg.av_seek_frame(video.format_context, video.stream[].index, timestamp, ffmpeg.AVSEEK_FLAG_BACKWARD) < 0:
+    echo "av_seek_frame failed"
+  ffmpeg.avcodec_flush_buffers(video.codec_context)
 
 iterator items* (video: var MockupVideo): MockupImage =
   ## 与えられた動画のフレームを全て返却する
@@ -222,176 +200,3 @@ iterator items* (video: var MockupVideo): MockupImage =
       yield image
     ffmpeg.av_frame_free(frame.addr)
   ffmpeg.av_packet_unref(packet.addr)
-
-iterator items* (video: MockupVideo, start, stop: uint): MockupImage = discard
-
-proc encode* (video: MockupVideo, src_frame: MockupImage) =
-  var
-    frame = src_frame
-    dest_frame = src_frame
-    packet = ffmpeg.AVPacket()
-    swsCtxEnc = getEncoderSwscontext(video, ffmpeg.AV_PIX_FMT_RGBA)
-  dest_frame.frame = src_frame.frame.prepareCopyFrame
-  dest_frame.frame[].format = video.codec_context[].pix_fmt.cint
-  if ffmpeg.av_frame_get_buffer(dest_frame.frame, 32) < 0:
-    raise newException(FFmpegError, "バッファの割り当てに失敗しました")
-  discard ffmpeg.sws_scale(
-    swsCtxEnc,
-    frame.frame[].data[0].addr,
-    frame.frame[].linesize[0].addr,
-    0,
-    frame.frame[].height,
-    dest_frame.frame[].data[0].addr,
-    dest_frame.frame[].linesize[0].addr
-  )
-  dest_frame.frame.pts = ffmpeg.av_rescale_q(
-    src_frame.frame.pts, video.time_base, video.encoder_codec_context[].time_base
-  )
-  dest_frame.frame.key_frame = 0
-  dest_frame.frame.pict_type = ffmpeg.AV_PICTURE_TYPE_NONE
-  if ffmpeg.avcodec_send_frame(video.encoder_codec_context, dest_frame.frame) < 0:
-    raise newException(FFmpegError, "エンコーダーへのフレームの供給に失敗しました")
-  while ffmpeg.avcodec_receive_packet(video.encoder_codec_context, packet.addr) == 0:
-    packet.stream_index = 0
-    ffmpeg.av_packet_rescale_ts(
-      packet.addr, video.encoder_codec_context.time_base, video.encoder_stream.time_base
-    )
-    if ffmpeg.av_interleaved_write_frame(video.encoder_format_context, packet.addr) != 0:
-      raise newException(FFmpegError, "パケットの書き込みに失敗しました")
-  ffmpeg.av_packet_unref(packet.addr)
-
-proc finish* (video: var MockupVideo) =
-  if ffmpeg.avcodec_send_frame(video.encoder_codec_context, nil) != 0:
-    return
-  var packet = ffmpeg.AVPacket()
-  while ffmpeg.avcodec_receive_packet(video.encoder_codec_context, packet.addr) == 0:
-    packet.stream_index = 0
-    ffmpeg.av_packet_rescale_ts(packet.addr, video.encoder_codec_context.time_base, video.stream.time_base)
-    if ffmpeg.av_interleaved_write_frame(video.encoder_format_context, packet.addr) != 0:
-      return
-  if ffmpeg.av_write_trailer(video.encoder_format_context) != 0:
-    return
-  ffmpeg.avcodec_free_context(video.codec_context.addr)
-  ffmpeg.avcodec_free_context(video.encoder_codec_context.addr)
-  ffmpeg.avformat_free_context(video.encoder_format_context)
-  discard ffmpeg.avio_closep(video.io_context.addr)
-
-import tables
-
-type
-  MockupCodec* = enum
-    Mpeg4
-    
-const
-  codecTable = {
-    Mpeg4: ffmpeg.AV_CODEC_ID_MPEG4
-  }.toTable
-
-proc getCodec (codec: MockupCodec): ptr ffmpeg.AVCodec =
-  result = ffmpeg.avcodec_find_encoder(codecTable[codec])
-  if result == nil:
-    raise newException(FFmpegError, "codec not found")
-
-proc testEnc (encCtx: ptr ffmpeg.AVCodecContext, frame: ptr ffmpeg.AVFrame, packet: ptr ffmpeg.AVPacket, outfile: File) =
-
-  if not (frame == nil):
-    echo "Send frame ", frame[].pts
-
-  var ret = ffmpeg.avcodec_send_frame(encCtx, frame)
-  if ret < 0:
-    raise newException(FFmpegError, "Error sending a frame for encoding")
-
-  while ret >= 0:
-    ret = ffmpeg.avcodec_receive_packet(encCtx, packet)
-    
-    echo "Write packet ", packet[].pts, " (size=", packet[].size, ")"
-    discard outfile.writeBuffer(packet[].data, packet[].size)
-    ffmpeg.av_packet_unref(packet)
-
-import textures
-
-# 動画に依存せず空フレームを生成してGLで描画してエンコードする
-proc getEmptyVideo* (srcPath: string) =
-  var
-    codec = Mpeg4.getCodec
-    codecContext = ffmpeg.avcodec_alloc_context3(codec)
-    packet = ffmpeg.av_packet_alloc()
-    swsCtxEnc = ffmpeg.sws_getContext(
-      1280,
-      720,
-      ffmpeg.AV_PIX_FMT_RGBA,
-      1280,
-      720,
-      ffmpeg.AV_PIX_FMT_YUV420P,
-      ffmpeg.SWS_BICUBIC,
-      nil, nil, nil
-    )
-  
-  codecContext[].bit_rate = 400000
-  codecContext[].width = 1280
-  codecContext[].height = 720
-  codecContext[].time_base = ffmpeg.AVRational(num: 1, den: 60)
-  codecContext[].framerate = ffmpeg.AVRational(num: 60, den: 1)
-  codecContext[].gop_size = 10
-  codecContext[].max_b_frames = 1
-  codecContext[].pix_fmt = ffmpeg.AV_PIX_FMT_YUV420P
-
-  if codec[].id == ffmpeg.AV_CODEC_ID_H264:
-    discard ffmpeg.av_opt_set(codecContext[].priv_data, "preset", "slow", 0)
-  
-  var ret = ffmpeg.avcodec_open2(codecContext, codec, nil)
-  if ret < 0:
-    raise newException(FFMpegError, "could not open codec")
-  
-  var file: File
-  echo "file: ", open(file, srcPath, fmReadWrite)
-
-  var frame = ffmpeg.av_frame_alloc()
-  if frame == nil:
-    raise newException(FFmpegError, "could not allocate video frame")
-  frame[].format = ffmpeg.AV_PIX_FMT_RGBA.cint
-  frame[].width = codecContext[].width
-  frame[].height = codecContext[].height
-
-  ret = ffmpeg.av_frame_get_buffer(frame, 0)
-  if ret < 0:
-    raise newException(FFmpegError, "could not allocate the video frame data")
-  
-  glClearColor(0.0f, 0.0f, 0.0f, 1.0f)
-  var mainTexture = newTexture(1280, 720)
-  mainTexture.setFrameBuffer()
-
-  var dest_frame: ptr ffmpeg.AVFrame
-
-  for i in 0..<60:
-    stdout.flushFile()
-    ret = ffmpeg.av_frame_make_writable(frame)
-    if ret < 0:
-      raise newException(FFmpegError, "could not write to frame")
-    # フレーム操作
-    glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT)
-    glReadPixels(0, 0, 1280, 720, gl.GL_RGBA, gl.GL_UNSIGNED_BYTE, frame[].data[0])
-
-    dest_frame = frame.prepareCopyFrame
-    dest_frame[].format = ffmpeg.AV_PIX_FMT_YUV420P.cint
-    if ffmpeg.av_frame_get_buffer(dest_frame, 32) < 0:
-      raise newException(FFmpegError, "バッファの割り当てに失敗しました")
-
-    discard ffmpeg.sws_scale(
-      swsCtxEnc,
-      frame[].data[0].addr,
-      frame[].linesize[0].addr,
-      0,
-      frame[].height,
-      dest_frame[].data[0].addr,
-      dest_frame[].linesize[0].addr
-    )
-
-    dest_frame[].pts = i
-    testEnc(codecContext, dest_frame, packet, file)
-  
-  testEnc(codecContext, nil, packet, file)
-
-  ffmpeg.avcodec_free_context(codecContext.addr)
-  ffmpeg.av_frame_free(frame.addr)
-  ffmpeg.av_packet_free(packet.addr)
