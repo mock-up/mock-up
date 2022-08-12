@@ -1,117 +1,103 @@
 import jester, uuids
-import std/[json, db_sqlite, strformat, times]
+import std/[json, db_sqlite, strformat]
 import mockuppkg/[videos, images, opengl, utils, shaders, textures, streaming, triangle, encode_mp4]
-import muml
 import nimgl/opengl as gl
 import ffmpeg
+import muml
+import glm
+import nagu
+
+mumlDeserializer()
 
 proc encode =
-  let _ = initializeOpenGL(1920, 1080)
-  let muml = muml("assets/live/livecoding.json")
-  let content = muml.content
+  let muml = muml.readMuml("assets/live/livecoding.json")
+  let header = muml.parseHeader
 
+  let _ = initializeOpenGL(header.width.GLsizei, header.height.GLsizei)
   glClearColor(0.0f, 0.0f, 0.0f, 1.0f)
-  var video: MockupVideo
-  var triangles: seq[GLTriangle]
+
+  let mumlElements = muml.deserialize()
+  for element in mumlElements:
+    if element of Video:
+      echo Video(element)[]
+    elif element of Triangle:
+      echo Triangle(element)[]
+    elif element of Rectangle:
+      echo Rectangle(element)[]
+    elif element of Text:
+      echo Text(element)[]
+
+  var video = newVideo("assets/mockup.mp4", linkTextureProgram(IdFilter))
+
+  var output_mp4 = openMP4(header.outputPath, int32(header.width), int32(header.height), int32(header.fps))
+
+  # for image in video:
+  #   glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT)
+  #   image.draw()
+  #   output_mp4.addFrame(readFrameFromOpenGL(header.width.int32, header.height.int32).frame)
   
-  for mumlObj in content.element:
-    let mockupVideoPath = "assets/mockup.mp4"
-    case mumlObj.kind
-    of mumlKindVideo:
-      let filters = mumlObj.video.filters
-      if filters.len == 0:
-        video = newVideo(mockupVideoPath, linkTextureProgram(IdFilter))
-      elif filters[0].kind == colorInversion:
-        video = newVideo(mockupVideoPath, linkTextureProgram(ColorInversionFilter))
-      else:
-        raise newException(IOError, "no filter")
-    of mumlKindTriangle:
-      let triangleProgram = linkTriangleProgram(IdFilter)
-      let position = mumlObj.triangle.position[0]
-      let color = mumlObj.triangle.color[0]
-      let size = mumlObj.triangle.scale[0]
-      let triangle = newTriangle(
-        (position.x.start.int, position.y.start.int),
-        (color.color.red.uint, color.color.green.uint, color.color.blue.uint),
-        size.width.start.uint,
-        triangleProgram,
-      )
-      triangles.add triangle
-    else: discard
-
-  var mainTexture = newTexture(video.width, video.height)
-  mainTexture.setFrameBuffer()
-
-  let now = getTime()
-  let nowStr: string = format(now, "yyyy-MM-dd-HH-mm-ss")
-  
-  var output_mp4 = openMP4(&"movies/{nowStr}.mp4", 1920, 1080, 60)
-
-  for image in video:
+  for _ in 0 ..< header.frameCount:
     glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT)
-    image.draw()
-    for triangle in triangles:
-      triangle.draw()
-    output_mp4.addFrame(image.readImage.frame)
-  
-  for _ in 0 ..< 50:
-    var frame = av_frame_alloc()
-    frame.format = AV_PIX_FMT_RGBA.cint
-    frame.height = video.height
-    frame.width = video.width
-    if av_frame_get_buffer(frame, 32) < 0:
-      raise newException(Defect, "バッファの割り当てに失敗しました")
-    glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT)
-    glReadPixels(0, 0, video.width, video.height, gl.GL_RGBA, gl.GL_UNSIGNED_BYTE, frame.data[0])
-    output_mp4.addFrame(frame)
+
+    var triangle = naguTriangle.init(
+      header,
+      [vec3(0, 0, 0), vec3(500, 0, 0), vec3(500, 500, 0)],
+      [vec4(1f, 0, 0, 0), vec4(0f, 1, 0, 1), vec4(0f, 0, 1, 1)],
+      "shaders/shapes/id/id.vert",
+      "shaders/shapes/id/id.frag"
+    )
+    triangle.use do (triangle: var naguBindedTriangle):
+      triangle.draw(vdmTriangles)
+
+    output_mp4.addFrame(readFrameFromOpenGL(header.width.int32, header.height.int32).frame)
 
   output_mp4.close()
 
-proc preview (muml: mumlNode) =
-  let _ = initializeOpenGL(1920, 1080)
-  let content = muml.content
+# proc preview (muml: mumlNode) =
+#   let _ = initializeOpenGL(1920, 1080)
+#   let content = muml.content
 
-  glClearColor(0.0f, 0.0f, 0.0f, 1.0f)
-  var video: MockupVideo
-  var triangles: seq[GLTriangle]
+#   glClearColor(0.0f, 0.0f, 0.0f, 1.0f)
+#   var video: MockupVideo
+#   var triangles: seq[GLTriangle]
   
-  for mumlObj in content.element:
-    let mockupVideoPath = "assets/mockup.mp4"
-    case mumlObj.kind
-    of mumlKindVideo:
-      let filters = mumlObj.video.filters
-      if filters.len == 0:
-        video = newVideo(mockupVideoPath, linkTextureProgram(IdFilter))
-      elif filters[0].kind == colorInversion:
-        video = newVideo(mockupVideoPath, linkTextureProgram(ColorInversionFilter))
-      else:
-        raise newException(IOError, "no filter")
-    of mumlKindTriangle:
-      let triangleProgram = linkTriangleProgram(IdFilter)
-      let position = mumlObj.triangle.position[0]
-      let color = mumlObj.triangle.color[0]
-      let size = mumlObj.triangle.scale[0]
-      let triangle = newTriangle(
-        (position.x.start.int, position.y.start.int),
-        (color.color.red.uint, color.color.green.uint, color.color.blue.uint),
-        size.width.start.uint,
-        triangleProgram,
-      )
-      triangles.add triangle
-    else: discard
+#   for mumlObj in content.element:
+#     let mockupVideoPath = "assets/mockup.mp4"
+#     case mumlObj.kind
+#     of mumlKindVideo:
+#       let filters = mumlObj.video.filters
+#       if filters.len == 0:
+#         video = newVideo(mockupVideoPath, linkTextureProgram(IdFilter))
+#       elif filters[0].kind == colorInversion:
+#         video = newVideo(mockupVideoPath, linkTextureProgram(ColorInversionFilter))
+#       else:
+#         raise newException(IOError, "no filter")
+#     of mumlKindTriangle:
+#       let triangleProgram = linkTriangleProgram(IdFilter)
+#       let position = mumlObj.triangle.position[0]
+#       let color = mumlObj.triangle.color[0]
+#       let size = mumlObj.triangle.scale[0]
+#       let triangle = newTriangle(
+#         (position.x.start.int, position.y.start.int),
+#         (color.color.red.uint, color.color.green.uint, color.color.blue.uint),
+#         size.width.start.uint,
+#         triangleProgram,
+#       )
+#       triangles.add triangle
+#     else: discard
 
-  var mainTexture = newTexture(video.width, video.height)
-  mainTexture.setFrameBuffer()
+#   var mainTexture = newTexture(video.width, video.height)
+#   mainTexture.setFrameBuffer()
 
-  var stream = initStreaming("rtmp://localhost:1935/app", video)
-  for image in video:
-    glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT)
-    image.draw()
-    for triangle in triangles:
-      triangle.draw()
-    stream.sendFrame(image.readImage)
+#   var stream = initStreaming("rtmp://localhost:1935/app", video)
+#   for image in video:
+#     glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT)
+#     image.draw()
+#     for triangle in triangles:
+#       triangle.draw()
+#     stream.sendFrame(image.readImage)
   
-  stream.finish()
+#   stream.finish()
 
 proc existsProject (db: DbConn, id: string): bool =
   result = db.getValue(sql"select id FROM projects where id = ?", id) == id
@@ -173,7 +159,7 @@ router mockup_router:
           response = %*{ "message": &"プロジェクト{id}のプレビューを要求しました" }
           muml = db.getValue(sql"select muml from projects where id = ?", id).parseJson
         db.close()
-        preview(muml)
+        # preview(muml)
         corsResp $response
       except Exception:
         echo getCurrentException().repr()
@@ -186,6 +172,7 @@ router mockup_router:
       corsResp Http400, $response
   
   get "/projects/@id/encode":
+    encode()
     corsResp "エンコードの要求（動画パスを返却）"
 
 
@@ -198,5 +185,6 @@ when isMainModule:
     jester.serve()
 
   dispatchMulti(
-    [serveMockup, cmdName = "serve"]
+    [serveMockup, cmdName = "serve"],
+    [encode]
   )
