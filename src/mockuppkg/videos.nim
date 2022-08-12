@@ -148,6 +148,11 @@ proc formatConvert (src: ptr ffmpeg.AVFrame, format_converter: ptr ffmpeg.SwsCon
     result[].linesize[0].addr
   )
 
+proc seek* (video: var MockupVideo, timestamp: int) =
+  if ffmpeg.av_seek_frame(video.format_context, video.stream[].index, timestamp, ffmpeg.AVSEEK_FLAG_BACKWARD) < 0:
+    echo "av_seek_frame failed"
+  ffmpeg.avcodec_flush_buffers(video.codec_context)
+
 iterator items* (video: var MockupVideo): MockupImage =
   ## 与えられた動画のフレームを全て返却する
   var packet = ffmpeg.AVPacket()
