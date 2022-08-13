@@ -1,6 +1,6 @@
 import jester, uuids
 import std/[json, db_sqlite, strformat]
-import mockuppkg/[videos, images, opengl, utils, shaders, textures, streaming, triangle, encode_mp4]
+import mockuppkg/[frames, opengl, utils, shaders, textures, streaming, triangle, encode_mp4, videos]
 import nimgl/opengl as gl
 import ffmpeg
 import muml
@@ -27,17 +27,21 @@ proc encode =
     elif element of Text:
       echo Text(element)[]
 
-  var video = newVideo("assets/mockup.mp4", linkTextureProgram(IdFilter))
+  var video = mockupVideo.init(
+    vec3(0, 0, 0),
+    "assets/mockup.mp4",
+    "shaders/textures/vertex/idFilter.glsl",
+    "shaders/textures/fragment/idFilter.glsl"
+  )
 
   var output_mp4 = openMP4(header.outputPath, int32(header.width), int32(header.height), int32(header.fps))
 
-  # for image in video:
-  #   glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT)
-  #   image.draw()
-  #   output_mp4.addFrame(readFrameFromOpenGL(header.width.int32, header.height.int32).frame)
-  
-  for _ in 0 ..< header.frameCount:
+  video.seek(60000)
+
+  for frame in video.decodeVideo(header):
     glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT)
+    var frame = frame
+    frame.draw()
 
     var triangle = naguTriangle.init(
       header,
@@ -49,7 +53,7 @@ proc encode =
     triangle.use do (triangle: var naguBindedTriangle):
       triangle.draw(vdmTriangles)
 
-    output_mp4.addFrame(readFrameFromOpenGL(header.width.int32, header.height.int32).frame)
+    output_mp4.addFrame(readFrame(header.width.int32, header.height.int32).frame)
 
   output_mp4.close()
 

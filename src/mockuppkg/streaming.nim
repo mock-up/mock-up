@@ -1,6 +1,6 @@
 from ffmpeg import nil
 import nimgl/glfw
-import images
+import frames
 import videos
 
 proc initialize_avformat_context (format_name: string): ptr ffmpeg.AVFormatContext =
@@ -18,7 +18,7 @@ proc initialize_io_context (fctx: ptr ffmpeg.AVFormatContext, output: string) =
     if ret < 0:
       raise newException(FFmpegError, "Could not open output IO context!")
 
-proc set_codec_params (fctx: ptr ffmpeg.AVFormatContext, codec_ctx: ptr ffmpeg.AVCodecContext, video: MockupVideo) =
+proc set_codec_params (fctx: ptr ffmpeg.AVFormatContext, codec_ctx: ptr ffmpeg.AVCodecContext, video: mockupVideo) =
 
   codec_ctx[].codec_tag = 0
   codec_ctx[].codec_id = ffmpeg.AV_CODEC_ID_H264
@@ -46,12 +46,12 @@ proc initialize_codec_stream (stream: ptr ffmpeg.AVStream, codec_ctx: ptr ffmpeg
   if ffmpeg.avcodec_open2(codec_ctx, codec, codec_options.addr) < 0:
     raise newException(FFmpegError, "Could not open video encoder!")
 
-type MockUpStreaming = object
+type mockupStreaming = object
   ofmt_ctx: ptr ffmpeg.AVFormatContext
   out_stream: ptr ffmpeg.AVStream
   out_codec_ctx: ptr ffmpeg.AVCodecContext
 
-proc initStreaming* (output: string, video: MockupVideo): MockUpStreaming =
+proc initStreaming* (output: string, video: mockupVideo): mockupStreaming =
   result.ofmt_ctx = initialize_avformat_context("flv")
   result.ofmt_ctx.initialize_io_context(output)
 
@@ -71,7 +71,7 @@ proc initStreaming* (output: string, video: MockupVideo): MockUpStreaming =
 
 var framenum = 1
 
-proc sendFrame* (streaming: MockUpStreaming, src_frame: MockupImage) =
+proc sendFrame* (streaming: mockupStreaming, src_frame: mockupFrame) =
   var
     frame = src_frame
     dest_frame = src_frame
@@ -118,7 +118,7 @@ proc sendFrame* (streaming: MockUpStreaming, src_frame: MockupImage) =
       raise newException(FFmpegError, "パケットの書き込みに失敗しました")
   ffmpeg.av_packet_unref(packet.addr)
 
-proc finish* (streaming: MockUpStreaming) =
+proc finish* (streaming: mockupStreaming) =
   discard ffmpeg.av_write_trailer(streaming.ofmt_ctx)
   discard ffmpeg.avcodec_close(streaming.out_codec_ctx)
   discard ffmpeg.avio_close(streaming.ofmt_ctx[].pb)
