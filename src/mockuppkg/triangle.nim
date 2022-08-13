@@ -1,17 +1,5 @@
 import nagu, glm, muml
-
-func naguCoordinate* (positions: array[3, Vec3[int]], header: mumlHeader): array[3, Vec3[float32]] =
-  for index in 0..2:
-    result[index][0] = positions[index][0] / header.width + 0.5
-    result[index][1] = positions[index][1] / header.height + 0.5
-    result[index][2] = positions[index][2].float32
-
-const mockupInitializeMvpMatrix = [
-  1f, 0.0f, 0.0f, 0.0f,
-  0.0f, 1f, 0.0f, 0.0f,
-  0.0f, 0.0f, 1.0f, 0.0f,
-  -0.5f, -0.5f, 0.0f, 1.0f
-]
+import utils
 
 proc init* (T: type naguTriangle,
             header: mumlHeader,

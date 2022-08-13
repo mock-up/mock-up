@@ -1,4 +1,21 @@
 import times, macros
+import glm, muml
+
+const mockupInitializeMvpMatrix* = [
+  1f, 0.0f, 0.0f, 0.0f,
+  0.0f, 1f, 0.0f, 0.0f,
+  0.0f, 0.0f, -1.0f, 0.0f,
+  -0.5f, -0.5f, 0.0f, 1.0f
+]
+
+func naguCoordinate* [I: static int] (
+  positions: array[I, Vec3[int]],
+  header: mumlHeader
+): array[I, Vec3[float32]] =
+  for index in 0 ..< I:
+    result[index][0] = positions[index][0] / header.width
+    result[index][1] = positions[index][1] / header.height
+    result[index][2] = positions[index][2].float32
 
 template bench* (name: string, body: untyped): untyped =
   block:
