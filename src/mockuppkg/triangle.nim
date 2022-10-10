@@ -15,3 +15,12 @@ proc init* (T: type naguTriangle,
     fragment_shader_path,
     mockupInitializeMvpMatrix
   )
+
+type Position2D = tuple[x, y, z: float]
+type Scale2D = tuple[width, height: float]
+
+func triangleCoordByCenterCoord* (pos: Position2D, scale: Scale2D): array[3, Position2D] =
+  let
+    (x, y, z) = pos
+    (width, height) = scale
+  discard

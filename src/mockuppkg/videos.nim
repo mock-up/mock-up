@@ -175,8 +175,6 @@ iterator decodeVideo* (video: var mockupVideo, header: mumlHeader): mockupFrame 
       image.naguTexture.use do (texture: var naguBindedTexture):
         texture.pixels = (data: frame_RGBA.data[0], width: frame_RGBA[].width.uint, height: frame_RGBA[].height.uint)
       
-      if frame_RGBA[].key_frame == 1:
-        echo "keyframe: ", frame_RGBA.pts
       yield image
     av_frame_free(frame.addr)
   av_packet_unref(packet.addr)

@@ -16,7 +16,15 @@
       G: <input type="number" value="0" id="green">
       B: <input type="number" value="0" id="blue">
     </div>
+    <div>
+      座標
+      x: <input type="number" value="0" id="x">
+      y: <input type="number" value="0" id="y">
+      z: <input type="number" value="0" id="z">
+    </div>
     <button onclick="preview()">プレビュー</button>
+    <p id="message"></p>
+    <p id="error"></p>
   </body>
   <script>
     if (Hls.isSupported()) {
@@ -26,18 +34,20 @@
       hls.attachMedia(video)
     }
 
-    const data = (red, green, blue) => {
+    const data = (red, green, blue, x, y, z) => {
       return {
         "muml": {
           "header": {
-            "name": "assets/out/mitou1.mp4",
+            "output_path": "movies/experiment.mp4",
             "width": 1280,
-            "height": 960
+            "height": 960,
+            "frame_count": 50,
+            "fps": 60
           },
-          "content": [
+          "contents": [
             {
-              "type": "video",
-              "path": "assets/src.mp4",
+              "type": "Video",
+              "path": "assets/mockup.mp4",
               "frame": {
                 "start": 0,
                 "end": 299
@@ -60,32 +70,34 @@
               }
             },
             {
-              "type": "triangle",
-              "frame": {
-                "start": 0,
-                "end": 299
-              },
-              "position": {
-                "x": {
-                  "start": 0,
-                  "end": 100
-                },
-                "y": {
-                  "start": 0,
-                  "end": 100
+              "type": "Triangle",
+              "frame": [
+                0, 1
+              ],
+              "position": [
+                {
+                  "x": x,
+                  "y": y,
+                  "z": z
                 }
-              },
+              ],
+              "scale": [
+                {
+                  "width": 200,
+                  "height": 200
+                }
+              ],
+              "rotate": [
+                0, 1
+              ],
+              "opacity": [
+                0, 1
+              ],
               "color": {
                 "red": red,
                 "green": green,
                 "blue": blue
               },
-              "scale": {
-                "width": 200,
-                "height": 200
-              },
-              "rotate": 0,
-              "opacity": 0
             }
           ]
         }
@@ -93,15 +105,19 @@
     }
     const preview = async () => {
       const [r, g, b] = [document.getElementById('red').value, document.getElementById('green').value, document.getElementById('blue').value]
+      const [x, y, z] = [document.getElementById('x').value, document.getElementById('y').value, document.getElementById('z').value]
       console.log(r, g, b)
-      const res = await axios.post('http://localhost:5001/projects/94db7662-7252-49e4-a4c2-fa101a4d864d/update', data(Number(r), Number(g), Number(b)))
+      console.log(x, y, z)
+      const res = await axios.post('http://localhost:5001/projects/94db7662-7252-49e4-a4c2-fa101a4d864d/update', data(Number(r), Number(g), Number(b), Number(x), Number(y), Number(z)))
         .then(response => console.log('response body:', response.data))
       const url = await axios.get("http://localhost:5001/projects/94db7662-7252-49e4-a4c2-fa101a4d864d/preview")
         .then(res => {
-          console.log(res.data.message)
+          document.getElementById('error').innerHTML = ''
+          document.getElementById('message').innerText = res.data.message
         })
         .catch(err => {
-          console.log("err:", err)
+          document.getElementById('error').innerHTML = err
+          document.getElementById('message').innerText = ''
         })
     }
   </script>

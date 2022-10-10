@@ -10,7 +10,7 @@ import nagu
 mumlDeserializer()
 
 proc encode =
-  let muml = muml.readMuml("assets/live/livecoding.json")
+  let muml = readMuml("assets/live/livecoding.json")
   let header = muml.parseHeader
 
   let _ = initializeOpenGL(header.width.GLsizei, header.height.GLsizei)
@@ -57,51 +57,55 @@ proc encode =
 
   output_mp4.close()
 
-# proc preview (muml: mumlNode) =
-#   let _ = initializeOpenGL(1920, 1080)
-#   let content = muml.content
+proc preview (muml: mumlNode) =
+  let _ = initializeOpenGL(1920, 1080)
+  let header = muml.parseHeader
 
-#   glClearColor(0.0f, 0.0f, 0.0f, 1.0f)
-#   var video: MockupVideo
-#   var triangles: seq[GLTriangle]
-  
-#   for mumlObj in content.element:
-#     let mockupVideoPath = "assets/mockup.mp4"
-#     case mumlObj.kind
-#     of mumlKindVideo:
-#       let filters = mumlObj.video.filters
-#       if filters.len == 0:
-#         video = newVideo(mockupVideoPath, linkTextureProgram(IdFilter))
-#       elif filters[0].kind == colorInversion:
-#         video = newVideo(mockupVideoPath, linkTextureProgram(ColorInversionFilter))
-#       else:
-#         raise newException(IOError, "no filter")
-#     of mumlKindTriangle:
-#       let triangleProgram = linkTriangleProgram(IdFilter)
-#       let position = mumlObj.triangle.position[0]
-#       let color = mumlObj.triangle.color[0]
-#       let size = mumlObj.triangle.scale[0]
-#       let triangle = newTriangle(
-#         (position.x.start.int, position.y.start.int),
-#         (color.color.red.uint, color.color.green.uint, color.color.blue.uint),
-#         size.width.start.uint,
-#         triangleProgram,
-#       )
-#       triangles.add triangle
-#     else: discard
+  glClearColor(0.0f, 0.0f, 0.0f, 1.0f)
 
-#   var mainTexture = newTexture(video.width, video.height)
-#   mainTexture.setFrameBuffer()
+  let mumlElements = muml.deserialize()
 
-#   var stream = initStreaming("rtmp://localhost:1935/app", video)
-#   for image in video:
-#     glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT)
-#     image.draw()
-#     for triangle in triangles:
-#       triangle.draw()
-#     stream.sendFrame(image.readImage)
-  
-#   stream.finish()
+  var video = mockupVideo.init(
+    vec3(0, 0, 0),
+    "assets/mockup.mp4",
+    "shaders/textures/vertex/idFilter.glsl",
+    "shaders/textures/fragment/idFilter.glsl"
+  )
+
+  var output_mp4 = openMP4(header.outputPath, int32(header.width), int32(header.height), int32(header.fps))
+
+  for frame in video.decodeVideo(header):
+    glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT)
+    var frame = frame
+    frame.draw()
+
+    for element in mumlElements:
+      if element of Video:
+        discard
+      elif element of Triangle:
+        let
+          pos = Triangle(element).position[0]
+          x = pos.x.int
+          y = pos.y.int
+          z = pos.z.int
+        echo x, " ", y, " ", z
+        var triangle = naguTriangle.init(
+          header,
+          [vec3(x, y, z), vec3(x+500, y, z), vec3(x+500, y+500, z)],
+          [vec4(1f, 0, 0, 0), vec4(0f, 1, 0, 1), vec4(0f, 0, 1, 1)],
+          "shaders/shapes/id/id.vert",
+          "shaders/shapes/id/id.frag"
+        )
+        triangle.use do (triangle: var naguBindedTriangle):
+          triangle.draw(vdmTriangles)
+      elif element of Rectangle:
+        discard
+      elif element of Text:
+        discard
+
+    output_mp4.addFrame(readFrame(header.width.int32, header.height.int32).frame)
+
+  output_mp4.close()
 
 proc existsProject (db: DbConn, id: string): bool =
   result = db.getValue(sql"select id FROM projects where id = ?", id) == id
@@ -140,9 +144,8 @@ router mockup_router:
       try:
         let
           params = request.body.parseJson
-          muml = $params["muml"]
           response = %*{ "message": &"プロジェクト{id}のmumlを更新しました" }
-        db.exec(sql"update projects set muml=? where id=?", $muml, $id)
+        db.exec(sql"update projects set muml=? where id=?", $params, $id)
         db.close()
         corsResp $response
       except Exception:
@@ -162,8 +165,9 @@ router mockup_router:
         let
           response = %*{ "message": &"プロジェクト{id}のプレビューを要求しました" }
           muml = db.getValue(sql"select muml from projects where id = ?", id).parseJson
+        echo muml
         db.close()
-        # preview(muml)
+        preview(muml.readMuml)
         corsResp $response
       except Exception:
         echo getCurrentException().repr()
