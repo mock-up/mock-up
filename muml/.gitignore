@@ -1,0 +1,8 @@
+# Nim
+nimcache/
+nimblecache/
+htmldocs/
+/docs
+
+# macOS
+.DS_Store

@@ -1,0 +1,18 @@
+tmp
+nimcache
+/docs
+/testresults
+
+# Assets used for experiments under development
+/assets
+/experiments
+
+# MacOS
+.DS_Store
+
+# Test executable files
+tests/*
+!tests/*/
+!tests/*.*
+
+example/example
