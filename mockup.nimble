@@ -12,14 +12,14 @@ bin           = @["mockup"]
 # Dependencies
 
 requires "nim >= 1.4.4"
-requires "ffmpeg >= 0.5.3"
+requires "ffmpeg >= 0.5.5"
 requires "cligen >= 1.5.2"
 requires "nimgl >= 1.3.2"
 requires "glm >= 1.1.1"
 requires "neo >= 0.3.1"
 requires "jester >= 0.5.0"
-requires "nagu"
-requires "muml"
+requires "https://github.com/mock-up/nagu"
+requires "https://github.com/mock-up/muml"
 requires "uuids == 0.1.11"
 
 # Tasks
