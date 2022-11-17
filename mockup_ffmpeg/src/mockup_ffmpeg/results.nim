@@ -1,6 +1,7 @@
 import std/macros
 
-{.experimental: "strictCaseObjects".}
+# {.experimental: "strictCaseObjects".}
+{.experimental: "caseStmtMacros".}
 
 type
   ResultKind* = enum
@@ -84,7 +85,8 @@ macro `case`* (ast: Result): untyped =
   )
 
 template `?`* [T, E] (res: Result[T, E]): untyped =
-  if res.kind == rOk:
-    res.ok
+  let r = res
+  if r.kind == rOk:
+    r.ok
   else:
-    return err(res.err)
+    return err(r.err)
