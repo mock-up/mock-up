@@ -46,8 +46,21 @@ proc error* [T, E] (res: Result[T, E]): E =
 
 macro `case`* (ast: Result): untyped =
   result = ast
+  result[0] = nnkStmtListExpr.newTree(
+    nnkLetSection.newTree(
+      nnkIdentDefs.newTree(
+        newIdentNode("resInCaseStatement"),
+        newEmptyNode(),
+        result[0],
+      )
+    ),
+    nnkDotExpr.newTree(
+      newIdentNode("resInCaseStatement"),
+      newIdentNode("kind")
+    )
+  )
   for i in 1..2:
-    if result[i][0][0].strVal == "ok":
+    if $result[i][0][0] == "ok":
       result[i][1].insert(0,
         nnkLetSection.newTree(
           nnkIdentDefs.newTree(
@@ -55,7 +68,7 @@ macro `case`* (ast: Result): untyped =
             newEmptyNode(),
             nnkCall.newTree(
               nnkDotExpr.newTree(
-                result[0],
+                newIdentNode("resInCaseStatement"),
                 newIdentNode("unwrap")
               )
             )
@@ -63,7 +76,7 @@ macro `case`* (ast: Result): untyped =
         )
       )
       result[i][0] = newIdentNode("rOk")
-    elif result[i][0][0].strVal == "err":
+    elif $result[i][0][0] == "err":
       result[i][1].insert(0,
         nnkLetSection.newTree(
           nnkIdentDefs.newTree(
@@ -71,7 +84,7 @@ macro `case`* (ast: Result): untyped =
             newEmptyNode(),
             nnkCall.newTree(
               nnkDotExpr.newTree(
-                result[0],
+                newIdentNode("resInCaseStatement"),
                 newIdentNode("error")
               )
             )
@@ -79,10 +92,6 @@ macro `case`* (ast: Result): untyped =
         )
       )
       result[i][0] = newIdentNode("rErr")
-  result[0] = nnkDotExpr.newTree(
-    result[0],
-    newIdentNode("kind")
-  )
 
 template `?`* [T, E] (res: Result[T, E]): untyped =
   let r = res

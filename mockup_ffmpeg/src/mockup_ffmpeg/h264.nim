@@ -5,7 +5,6 @@ type
   H264* = object
     codec: ptr AVCodec # DE
     codecCtx: ptr AVCodecContext # DE
-    # codecOptions: ptr AVDictionary # E
     codecParams: ptr AVCodecParameters # D
     ioCtx: ptr AVIOContext # E
     fmtCtx: ptr AVFormatContext # DE
@@ -14,8 +13,15 @@ type
   VideoFrame* = object
     frame: ptr AVFrame
 
-func width* (h264: H264): int =
+func width* (h264: H264): int32 =
   result = h264.codecCtx.width
+
+func height* (h264: H264): int32 =
+  result = h264.codecCtx.height
+
+func fps* (h264: H264): int32 =
+  result = h264.codecCtx.timebase.den
+  result = av_q2d(h264.stream.r_frame_rate).int32
 
 # proc `=destroy`* (h264: var H264) =
 #   echo "=destroy"
@@ -42,10 +48,10 @@ proc allocCodecContext* (codec: ptr AVCodec): Result[ptr AVCodecContext, string]
     return err("failed to alloc codec context")
   return ok(ctx)
 
-# proc set* (dict: var ptr AVDictionary, key, value: string): Result[(), string] =
-#   if av_dict_set(dict.addr, key.cstring, value.cstring, 0) < 0:
-#     return err("failed to set to AVDictionary")
-#   return ok(())
+proc set* (dict: var ptr AVDictionary, key, value: string): Result[(), string] =
+  if av_dict_set(dict.addr, key.cstring, value.cstring, 0) < 0:
+    return err("failed to set to AVDictionary")
+  return ok(())
 
 func toAVIOFlag* (mode: FileMode): cint =
   case mode
@@ -112,14 +118,15 @@ proc newH264* (distPath: string, width, height, fps: int32): Result[H264, string
   h264.codecCtx.gop_size = 10
   h264.codecCtx.max_b_frames = 1
   h264.codecCtx.bit_rate = 400000
-  # discard ?h264.codecOptions.set("profile", "high")
-  # discard ?h264.codecOptions.set("preset", "medium")
-  # discard ?h264.codecOptions.set("crf", "22")
-  # discard ?h264.codecOptions.set("level", "4.0")
+  var codecOptions: ptr AVDictionary = nil
+  discard ?codecOptions.set("profile", "high")
+  discard ?codecOptions.set("preset", "medium")
+  discard ?codecOptions.set("crf", "22")
+  discard ?codecOptions.set("level", "4.0")
   h264.ioCtx = ?allocIOContext(distPath, fmWrite)
   h264.fmtCtx = ?allocFormatContext("mp4")
   h264.fmtCtx.pb = h264.ioCtx
-  discard ?initializeCodecContext(h264.codecCtx, nil) # h264.codecOptions)
+  discard ?initializeCodecContext(h264.codecCtx, codecOptions)
   h264.stream = ?h264.fmtCtx.allocStream(h264.codec)
   discard ?h264.stream.codecpar.fillCodecParameters(h264.codecCtx)
   discard ?h264.fmtCtx.writeHeader()
@@ -256,7 +263,7 @@ proc receive* (h264: var H264): Result[(), string] =
 
 proc addFrame* (h264: var H264, srcFrame: VideoFrame): Result[(), string] =
   var frame = newFrame()
-  frame.frame.format = srcFrame.frame.format
+  frame.frame.format = h264.codecCtx.pix_fmt.cint
   frame.frame.width = srcFrame.frame.width
   frame.frame.height = srcFrame.frame.height
   frame.frame.pts = h264.frameCount()
@@ -265,3 +272,19 @@ proc addFrame* (h264: var H264, srcFrame: VideoFrame): Result[(), string] =
   discard swsCtx.scale(srcFrame, frame)
   discard ?h264.codecCtx.send(frame)
   discard ?h264.receive()
+
+proc flush* (h264: var H264): Result[(), string] =
+  if avcodec_send_frame(h264.codecCtx, nil) != 0:
+    return err("failed to flush")
+  var packet = ?newPacket()
+  while avcodec_receive_packet(h264.codecCtx, packet) == 0:
+    packet.stream_index = 0
+    av_packet_rescale_ts(packet, h264.codecCtx.time_base, h264.stream.time_base)
+    if av_interleaved_write_frame(h264.fmtCtx, packet) != 0:
+      return err("failed to flush")
+  if av_write_trailer(h264.fmtCtx) != 0:
+    return err("failed to flush")
+  avcodec_free_context(h264.codecCtx.addr)
+  avformat_free_context(h264.fmtCtx)
+  discard avio_closep(h264.ioCtx.addr)
+  return ok(())
