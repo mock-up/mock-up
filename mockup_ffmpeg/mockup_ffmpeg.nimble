@@ -10,3 +10,4 @@ srcDir        = "src"
 # Dependencies
 
 requires "nim >= 1.6.8"
+requires "ffmpeg >= 0.5.5"
